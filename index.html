@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book Library</title>
+
+<style>
+/* --- TEMA SCURO --- */
+body {
+  font-family: sans-serif;
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 10px;
+  background: #121212; /* sfondo scuro */
+  color: #ffffff; /* scritte bianche */
+}
+
+/* Riga con input + bottoni */
+.row {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+/* Campo dove incolli il link */
+input {
+  flex: 1;
+  padding: 10px;
+  font-size: 16px;
+  background: #222; /* input scuro */
+  color: #fff;
+  border: 1px solid #222;
+  border-radius: 50px;
+}
+input::placeholder {
+  color: #888;
+}
+
+/* Bottoni generici */
+button {
+  padding: 10px 14px;
+  cursor: pointer;
+  background: #2a2a2a;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 50px;
+}
+button:hover {
+  background: #3a3a3a;
+}
+
+/* Singola riga della lista (es. amazon.it) */
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #333;
+  background: #1e1e1e;
+  padding: 8px 12px;
+  border-radius: 50px;
+  margin-top: 20px;
+}
+
+/* Link cliccabile - il tuo cerchio rosso */
+a.link {
+  font-weight: bold;
+  text-decoration: none;
+  color: #fff; /* scritta bianca */
+}
+a.link:hover {
+  text-decoration: underline;
+  color: #8ab4f8; /* diventa azzurrino al passaggio */
+}
+</style>
+</head>
+
+<body>
+
+<h2>Book Library - <span id="count">0</span></h2>
+
+<!-- Barra di inserimento -->
+<div class="row">
+  <input id="urlInput" placeholder="Incolla link es: https://www.amazon.it/libro...">
+  <button id="addBtn">+ OK</button>
+  <button id="cancelBtn" style="display:none">Annulla</button>
+</div>
+
+<!-- Qui JS disegna la lista -->
+<div id="list"></div>
+
+<script>
+// --- DATI ---
+// Prendiamo i link salvati dal browser, se c'erano quelli vecchi (solo stringa) li convertiamo
+let raw = JSON.parse(localStorage.getItem('links') || '[]');
+let links = raw.map(x => typeof x === 'string' ? {name:x, url:'https://'+x} : x);
+let editIndex = null; // serve per capire se stiamo modificando
+
+// --- RIFERIMENTI HTML ---
+const input = document.getElementById('urlInput');
+const listDiv = document.getElementById('list');
+
+// --- FUNZIONI UTILI ---
+
+// Prende solo il nome del sito (es. da https://www.amazon.it/libro -> amazon.it)
+function soloNomeSito(url){
+  try{
+    let u = url.includes('://') ? url : 'https://'+url;
+    return new URL(u).hostname.replace(/^www\./,'');
+  }catch{
+    return url.split('/')[0];
+  }
+}
+
+// Si assicura che l'url abbia https:// davanti per farlo aprire
+function urlCompleto(url){
+  return url.includes('://') ? url : 'https://'+url;
+}
+
+// Salva tutto nel browser così non si perde se chiudi la pagina
+function save(){
+  localStorage.setItem('links', JSON.stringify(links));
+}
+
+// Disegna la lista a schermo
+function render(){
+  listDiv.innerHTML = '';
+  document.getElementById('count').textContent = links.length;
+  links.forEach((obj,i)=>{
+    let div = document.createElement('div');
+    div.className = 'item';
+    // Il nome è un <a> cliccabile che apre il sito
+    div.innerHTML = `
+      <a class="link" href="${obj.url}" target="_blank">${obj.name}</a>
+      <div>
+        <button onclick="modifica(${i})">Modifica</button>
+        <button onclick="cancella(${i})">Cancella</button>
+      </div>
+    `;
+    listDiv.appendChild(div);
+  });
+}
+
+// Aggiunge un nuovo link o salva la modifica
+function aggiungi(){
+  let val = input.value.trim();
+  if(!val) return;
+  let obj = {name: soloNomeSito(val), url: urlCompleto(val)};
+
+  if(editIndex !== null){ // stavamo modificando
+    links[editIndex] = obj;
+    editIndex = null;
+    document.getElementById('cancelBtn').style.display = 'none';
+  } else { // nuovo inserimento
+    links.push(obj);
+  }
+  input.value = '';
+  save();
+  render();
+}
+
+function cancella(i){
+  links.splice(i,1);
+  save();
+  render();
+}
+
+function modifica(i){
+  input.value = links[i].url; // rimettiamo il link vero nell'input
+  editIndex = i;
+  document.getElementById('cancelBtn').style.display = 'block';
+  input.focus();
+}
+
+// --- EVENTI BOTTONI ---
+document.getElementById('addBtn').onclick = aggiungi;
+document.getElementById('cancelBtn').onclick = ()=>{
+  editIndex = null;
+  input.value = '';
+  document.getElementById('cancelBtn').style.display = 'none';
+};
+// Se premi Invio, aggiunge
+input.addEventListener('keydown', e=>{ if(e.key==='Enter') aggiungi(); });
+
+// Disegna subito all'avvio
+render();
+</script>
+
+</body>
+</html>
